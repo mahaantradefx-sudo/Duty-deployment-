@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Duty Deployment</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f3f4f6;--card:#fff;--tx:#1b1f24;--mu:#6b7280;--gr:#107c41;--bd:#c9ced6;--hd:#e9ecef}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111418;--card:#1b2027;--tx:#eceff3;--mu:#9aa3af;--gr:#2fb36b;--bd:#3a434f;--hd:#262d38}}
+:root[data-theme="dark"]{--bg:#111418;--card:#1b2027;--tx:#eceff3;--mu:#9aa3af;--gr:#2fb36b;--bd:#3a434f;--hd:#262d38}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:10px}
+h1{font-size:20px;margin:2px 0 8px}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.bar input{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:8px;min-width:0;flex:1 1 120px}
+button{font:inherit;border:0;border-radius:6px;padding:8px 12px;background:var(--gr);color:#fff;font-weight:600}
+button.g{background:transparent;color:inherit;border:1px solid var(--bd);padding:0 6px;font-weight:400;font-size:12px}
+.sheet{overflow:auto;max-height:82vh;border:1px solid var(--bd);background:var(--card)}
+table{border-collapse:separate;border-spacing:0;width:max-content}
+th,td{border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);padding:0;font-size:13px;line-height:1.2}
+th{background:var(--hd);position:sticky;top:0;z-index:2;padding:2px 4px;white-space:nowrap;font-weight:600;font-size:12px}
+.rn{position:sticky;left:0;z-index:1;min-width:30px;width:30px;background:var(--hd);text-align:center;color:var(--mu);font-size:11px}
+th.rn{z-index:3}
+.nm{position:sticky;left:30px;z-index:1;min-width:110px;width:110px;background:var(--card);border-right:2px solid var(--bd)}
+th.nm{z-index:3;background:var(--hd);text-align:left}
+td input{display:block;width:100%;min-width:84px;border:0;border-radius:0;background:transparent;color:inherit;font:inherit;font-size:13px;padding:2px 4px;height:22px;outline:0}
+td.nm input{min-width:110px;font-weight:600}
+td input:focus{outline:2px solid var(--gr);outline-offset:-2px}
+input[type=color]{width:22px;height:16px;padding:0;border:0;background:none;vertical-align:middle;min-width:0;flex:none}
+.dup{background:#fde68a!important}
+.dup input{color:#111!important;font-weight:700}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:10px}
+.rp{border:1px solid var(--bd);border-left:4px solid #d97706;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:15px}
+.rp>div{margin-top:6px}.rp span{color:var(--mu);font-size:13px}
+.ct{background:#d97706;color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;min-width:44px;text-align:center}
+.rt{width:100%;border-collapse:collapse;margin-top:8px}.rt th,.rt td{border:1px solid var(--bd);padding:8px;text-align:left;font-size:15px;position:static;background:none}.rt th{background:var(--hd)}
+.hint{color:var(--mu);font-size:13px;margin:6px 0 0}
+img{width:100%;border:1px solid var(--bd);border-radius:8px;margin-top:10px;background:#fff}
+</style></head><body>
+<h1>Duty Deployment</h1>
+<div class="bar">
+  <button onclick="chMonth(-1)" style="background:#4b5563">&#9664;</button>
+  <div id="mn" style="flex:1 1 120px;text-align:center;font-weight:600;align-self:center"></div>
+  <button onclick="chMonth(1)" style="background:#4b5563">&#9654;</button>
+  <button onclick="addRows()" style="background:#4b5563">+ 5 Rows</button>
+  <button onclick="makeImg()" style="background:#2563eb">Image aakku</button>
+  <button onclick="exportXlsx()" style="background:#b45309">Excel download</button>
+</div>
+<div class="sheet"><div id="tbl"></div></div>
+<p class="hint">Ippo irukkura month-oda ella dates-um right side-la varum. Mela arrow-la month maathalam. Excel maathiri cell-la type pannunga. Enter = keezha, Tab = adutha cell. Format: 09:00-11:00 3rd sentry</p>
+
+<div class="card" id="repCard" style="display:none;margin-top:48px">
+  <b>Nominal roll</b>
+  <div id="rep"></div>
+</div>
+<div class="card"><b>Sentry timings</b><p class="hint">Timing maarina inga maathunga. Cell-la sentry peru mattum dhaan varum.</p><div id="sen"></div></div>
+<div id="out"></div>
+
+<datalist id="dl"></datalist>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+var S={names:[],dates:[],cells:{},cols:{}},uid=0;
+try{var r=localStorage.getItem('duty1');if(r)S=JSON.parse(r)}catch(e){}
+S.names=S.names||[];S.dates=S.dates||[];S.cells=S.cells||{};S.cols=S.cols||{};
+S.sentries=S.sentries||[['1st sentry','1700-1900, 0100-0300, 0900-1100'],['2nd sentry','1900-2100, 0300-0500, 1100-1300'],['3rd sentry','2100-2300, 0500-0700, 1300-1500'],['4th sentry','2300-0100, 0700-0900, 1500-1700']].map(function(a){return{n:a[0],t:a[1]}});
+function nid(){return 'p'+Date.now().toString(36)+(uid++)}
+while(S.names.length<45)S.names.push({id:nid(),n:''});
+var now=new Date(),P2=function(n){return String(n).padStart(2,'0')};
+var TD=now.getFullYear()+'-'+P2(now.getMonth()+1)+'-'+P2(now.getDate());
+S.month=TD.slice(0,7);
+function monthDates(ym){var p=ym.split('-'),n=new Date(+p[0],+p[1],0).getDate(),a=[];for(var i=1;i<=n;i++)a.push(ym+'-'+P2(i));return a}
+S.dates=monthDates(S.month);
+function chMonth(k){var p=S.month.split('-'),d=new Date(+p[0],+p[1]-1+k,1);S.month=d.getFullYear()+'-'+P2(d.getMonth()+1);S.dates=monthDates(S.month);save();draw()}
+function save(){try{localStorage.setItem('duty1',JSON.stringify(S))}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fd(d){var p=d.split('-');return p[2]+'/'+p[1]}
+function gc(d){return S.cols[d]||'#dbe6ff'}
+function rgb(h){return[parseInt(h.substr(1,2),16),parseInt(h.substr(3,2),16),parseInt(h.substr(5,2),16)]}
+function fc(h){var a=rgb(h);return (a[0]*299+a[1]*587+a[2]*114)/1000>150?'#111':'#fff'}
+function tint(h){var a=rgb(h).map(function(c){return Math.round(255-(255-c)*0.3)});return 'rgb('+a.join(',')+')'}
+function setCol(d,v){S.cols[d]=v;save();draw()}
+function addRows(){for(var i=0;i<5;i++)S.names.push({id:nid(),n:''});save();draw()}
+function norm(v){return v.toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,'-').trim()}
+function findDups(){var out=[];S.names.forEach(function(p,i){var g={};S.dates.forEach(function(d){var raw=(S.cells[p.id+'|'+d]||'').trim(),v=norm(raw);if(!v||v==='off')return;(g[v]=g[v]||{label:raw,ds:[]}).ds.push(d)});for(var k in g)if(g[k].ds.length>1)out.push({p:p,nm:p.n.trim()||('Row '+(i+1)),label:g[k].label,ds:g[k].ds})});return out}
+function dupSet(dl){var D={};dl.forEach(function(e){e.ds.forEach(function(d){D[e.p.id+'|'+d]=1})});return D}
+function groups(dl){dl.sort(function(a,b){return b.ds.length-a.ds.length});var by={},ord=[];dl.forEach(function(e){var k=e.p.id;if(!by[k]){by[k]={nm:e.nm,items:[]};ord.push(by[k])}by[k].items.push(e)});return ord}
+function mark(){
+  var dl=findDups(),D=dupSet(dl);
+  document.querySelectorAll('td[data-k]').forEach(function(td){td.classList.toggle('dup',!!D[td.getAttribute('data-k')])});
+  document.getElementById('repCard').style.display=dl.length?'block':'none';
+  var g=groups(dl);
+  document.getElementById('rep').innerHTML=g.length?'<table class="rt"><tr><th>Name</th><th>Sentry / time - times</th></tr>'+g.map(function(f){return '<tr><td><b>'+esc(f.nm)+'</b></td><td>'+f.items.map(function(e){return esc(e.label)+' - <b>'+e.ds.length+' times</b>'}).join('<br>')+'</td></tr>'}).join('')+'</table>':'';
+}
+function draw(){
+  var MN=['January','February','March','April','May','June','July','August','September','October','November','December'],ym=S.month.split('-');document.getElementById('mn').textContent=MN[+ym[1]-1]+' '+ym[0];
+  var h='<table><thead><tr><th class="rn"></th><th class="nm">Name</th>';
+  S.dates.forEach(function(d,i){var c=S.cols[d];h+='<th'+(d===TD?' id="today"':'')+' style="'+(c?'background:'+c+';color:'+fc(c):'')+'">'+fd(d)+' <input type="color" value="'+gc(d)+'" data-col="'+d+'"></th>'});
+  h+='</tr></thead><tbody>';
+  S.names.forEach(function(p,i){
+    h+='<tr><td class="rn">'+(i+1)+'</td><td class="nm"><input data-r="'+i+'" data-c="0" data-n="'+i+'" value="'+esc(p.n)+'" autocomplete="off"></td>';
+    S.dates.forEach(function(d,j){var c=S.cols[d];h+='<td data-k="'+p.id+'|'+d+'"'+(c?' style="background:'+tint(c)+'"':'')+'><input list="dl" data-r="'+i+'" data-c="'+(j+1)+'" value="'+esc(S.cells[p.id+'|'+d]||'')+'"'+(c?' style="color:#111"':'')+'></td>'});
+    h+='</tr>'});
+  document.getElementById('tbl').innerHTML=h+'</tbody></table>';
+  mark();
+  var th=document.getElementById('today');if(th)document.querySelector('.sheet').scrollLeft=Math.max(0,th.offsetLeft-200);
+}
+function buildDl(){document.getElementById('dl').innerHTML=S.sentries.map(function(z){return '<option value="'+esc(z.n)+'">'}).join('')+'<option value="Waiting">'}
+function drawSen(){document.getElementById('sen').innerHTML=S.sentries.map(function(z,i){return '<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><b style="width:84px;flex:none">'+esc(z.n)+'</b><input data-s="'+i+'" value="'+esc(z.t)+'" style="flex:1;min-width:0;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:6px"></div>'}).join('')}
+document.getElementById('sen').addEventListener('input',function(e){var i=e.target.dataset.s;if(i===undefined)return;S.sentries[+i].t=e.target.value;save()});
+var T=document.getElementById('tbl');
+T.addEventListener('input',function(e){var t=e.target;
+  if(t.dataset.n!==undefined)S.names[+t.dataset.n].n=t.value;
+  else if(t.closest('td')&&t.closest('td').dataset.k)S.cells[t.closest('td').dataset.k]=t.value;
+  else return;
+  save();mark()});
+T.addEventListener('change',function(e){var t=e.target;if(t.dataset.col)setCol(t.dataset.col,t.value)});
+T.addEventListener('keydown',function(e){var t=e.target;if(t.dataset.r===undefined)return;
+  var r=+t.dataset.r,c=+t.dataset.c,n=null;
+  if(e.key==='Enter'||e.key==='ArrowDown')n=r+1;else if(e.key==='ArrowUp')n=r-1;else return;
+  var nx=T.querySelector('input[data-r="'+n+'"][data-c="'+c+'"]');
+  if(nx){e.preventDefault();nx.focus();nx.select&&nx.select()}});
+function isNative(){return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())}
+function b64(buf){var b='',u=new Uint8Array(buf),i;for(i=0;i<u.length;i+=8192)b+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(b)}
+async function shareB64(name,data){var P=window.Capacitor.Plugins,r=await P.Filesystem.writeFile({path:name,data:data,directory:'CACHE'});await P.Share.share({title:name,url:r.uri,dialogTitle:'Save / Send'})}
+async function shareImg(){try{await shareB64('Duty-Chart.png',window.LASTIMG.split(',')[1])}catch(e){alert('Share aagala: '+((e&&e.message)||e))}}
+async function exportXlsx(){
+  if(typeof XLSX==='undefined'){alert('Excel library load aagala. Internet check pannunga.');return}
+  var idx=[];S.names.forEach(function(p,i){if(p.n.trim()||S.dates.some(function(d){return (S.cells[p.id+'|'+d]||'').trim()}))idx.push(i)});
+  if(!idx.length){alert('Munnadi name and duty type pannunga');return}
+  var rows=[['No','Name'].concat(S.dates.map(fd))];
+  idx.forEach(function(i){var p=S.names[i];rows.push([i+1,p.n].concat(S.dates.map(function(d){return S.cells[p.id+'|'+d]||''})))});
+  var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:5},{wch:18}].concat(S.dates.map(function(){return{wch:12}}));ws['!freeze']={xSplit:2,ySplit:1};
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Duty chart');
+  var g=groups(findDups()),nr=[['Name','Sentry','Times']];
+  g.forEach(function(f){f.items.forEach(function(e){nr.push([f.nm,e.label,e.ds.length])})});
+  var w2=XLSX.utils.aoa_to_sheet(nr);w2['!cols']=[{wch:18},{wch:18},{wch:8}];XLSX.utils.book_append_sheet(wb,w2,'Nominal roll');
+  var MN=['January','February','March','April','May','June','July','August','September','October','November','December'],ym=S.month.split('-');
+  var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  var fname='Duty-Chart-'+MN[+ym[1]-1]+'-'+ym[0]+'.xlsx';
+  if(isNative()){try{await shareB64(fname,b64(buf))}catch(e){alert('Share aagala: '+((e&&e.message)||e))}return}
+  try{var dn=await claude.use('downloads');if(!dn){alert('Indha view-la download work aagaadhu. Link-a Chrome-la open pannunga.');return}
+    await dn.save({filename:'Duty-Chart-'+MN[+ym[1]-1]+'-'+ym[0]+'.xlsx',data:buf})}
+  catch(e){if(e&&e.code!=='declined')alert('Download aagala: '+((e&&e.message)||e))}
+}
+function makeImg(){
+  var idx=[];S.names.forEach(function(p,i){var any=p.n.trim()||S.dates.some(function(d){return (S.cells[p.id+'|'+d]||'').trim()});if(any)idx.push(i)});
+  if(!idx.length||!S.dates.length){alert('Name and date add pannunga');return}
+  var dl=findDups(),D=dupSet(dl),gp=groups(dl),ex=gp.length?60+34+gp.reduce(function(a,f){return a+34*f.items.length},0):0;
+  var no=44,nw=170,cw=120,rh=40,hh=50,top=64,pad=16;
+  var W=Math.max(520,pad*2+no+nw+cw*S.dates.length),H=top+hh+rh*idx.length+pad+ex;
+  var c=document.createElement('canvas');c.width=W*2;c.height=H*2;
+  var x=c.getContext('2d');x.scale(2,2);
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  x.fillStyle='#111';x.font='bold 24px sans-serif';x.textBaseline='middle';x.textAlign='left';
+  x.fillText('Duty Deployment',pad,32);
+  function cell(px,py,w,h,txt,bold,bg,al,tc){
+    x.fillStyle=bg;x.fillRect(px,py,w,h);x.strokeStyle='#9aa3af';x.lineWidth=1;x.strokeRect(px,py,w,h);
+    x.fillStyle=tc||'#111';x.font=(bold?'bold ':'')+'15px sans-serif';x.textAlign=al;
+    x.fillText(txt,al==='center'?px+w/2:px+8,py+h/2,w-12)}
+  cell(pad,top,no,hh,'No',true,'#e5e7eb','center');
+  cell(pad+no,top,nw,hh,'Name',true,'#e5e7eb','left');
+  S.dates.forEach(function(d,j){var k=gc(d);cell(pad+no+nw+cw*j,top,cw,hh,fd(d),true,k,'center',fc(k))});
+  idx.forEach(function(i,r){var p=S.names[i],y=top+hh+rh*r;
+    cell(pad,y,no,rh,String(i+1),false,'#f3f4f6','center');
+    cell(pad+no,y,nw,rh,p.n,true,'#fff','left');
+    S.dates.forEach(function(d,j){cell(pad+no+nw+cw*j,y,cw,rh,S.cells[p.id+'|'+d]||'',false,D[p.id+'|'+d]?'#fde68a':(S.cols[d]?tint(S.cols[d]):'#fff'),'center')})});
+  if(gp.length){var y=top+hh+rh*idx.length+40,nw2=200,dw=W-pad*2-nw2;x.fillStyle='#111';x.font='bold 18px sans-serif';x.textAlign='left';x.fillText('Nominal roll',pad,y);y+=22;
+    cell(pad,y,nw2,34,'Name',true,'#e5e7eb','left');cell(pad+nw2,y,dw,34,'Sentry / time - times',true,'#e5e7eb','left');y+=34;
+    gp.forEach(function(f){var h=34*f.items.length;cell(pad,y,nw2,h,'',false,'#fff','left');cell(pad+nw2,y,dw,h,'',false,'#fff','left');
+      x.fillStyle='#111';x.textAlign='left';x.font='bold 15px sans-serif';x.fillText(f.nm,pad+8,y+17,nw2-12);
+      f.items.forEach(function(e,i){x.font='15px sans-serif';x.fillText(e.label+' - '+e.ds.length+' times',pad+nw2+8,y+17+34*i,dw-12)});y+=h})}
+  var du=c.toDataURL('image/png');window.LASTIMG=du;
+  document.getElementById('out').innerHTML='<div class="card"><b>Image</b><img src="'+du+'" alt="Duty table">'+(isNative()?'<button onclick="shareImg()" style="margin-top:8px">Image save / share</button>':'<p class="hint">Image-a long-press panni Save image select pannunga.</p>')+'</div>';
+}
+buildDl();drawSen();draw();
+</script></body></html>
