@@ -81,15 +81,15 @@ function tint(h){var a=rgb(h).map(function(c){return Math.round(255-(255-c)*0.3)
 function setCol(d,v){S.cols[d]=v;save();draw()}
 function addRows(){for(var i=0;i<5;i++)S.names.push({id:nid(),n:''});save();draw()}
 function norm(v){return v.toLowerCase().replace(/\s+/g,' ').replace(/\s*-\s*/g,'-').trim()}
-function findDups(){var out=[];S.names.forEach(function(p,i){var g={};S.dates.forEach(function(d){var raw=(S.cells[p.id+'|'+d]||'').trim(),v=norm(raw);if(!v||v==='off')return;(g[v]=g[v]||{label:raw,ds:[]}).ds.push(d)});for(var k in g)if(g[k].ds.length>1)out.push({p:p,nm:p.n.trim()||('Row '+(i+1)),label:g[k].label,ds:g[k].ds})});return out}
+function findDups(){var out=[];S.names.forEach(function(p,i){var g={};S.dates.forEach(function(d,j){var raw=(S.cells[p.id+'|'+d]||'').trim(),v=norm(raw);if(!v||v==='off')return;var o=(g[v]=g[v]||{label:raw,ds:[],ix:[]});o.ds.push(d);o.ix.push(j)});for(var k in g){var q=g[k],n=1;for(var t=1;t<q.ix.length;t++)if(q.ix[t]!==q.ix[t-1]+1)n++;if(n>1)out.push({p:p,nm:p.n.trim()||('Row '+(i+1)),label:q.label,ds:q.ds,n:n})}});return out}
 function dupSet(dl){var D={};dl.forEach(function(e){e.ds.forEach(function(d){D[e.p.id+'|'+d]=1})});return D}
-function groups(dl){dl.sort(function(a,b){return b.ds.length-a.ds.length});var by={},ord=[];dl.forEach(function(e){var k=e.p.id;if(!by[k]){by[k]={nm:e.nm,items:[]};ord.push(by[k])}by[k].items.push(e)});return ord}
+function groups(dl){dl.sort(function(a,b){return b.n-a.n});var by={},ord=[];dl.forEach(function(e){var k=e.p.id;if(!by[k]){by[k]={nm:e.nm,items:[]};ord.push(by[k])}by[k].items.push(e)});return ord}
 function mark(){
   var dl=findDups(),D=dupSet(dl);
   document.querySelectorAll('td[data-k]').forEach(function(td){td.classList.toggle('dup',!!D[td.getAttribute('data-k')])});
   document.getElementById('repCard').style.display=dl.length?'block':'none';
   var g=groups(dl);
-  document.getElementById('rep').innerHTML=g.length?'<table class="rt"><tr><th>Name</th><th>Sentry / time - times</th></tr>'+g.map(function(f){return '<tr><td><b>'+esc(f.nm)+'</b></td><td>'+f.items.map(function(e){return esc(e.label)+' - <b>'+e.ds.length+' times</b>'}).join('<br>')+'</td></tr>'}).join('')+'</table>':'';
+  document.getElementById('rep').innerHTML=g.length?'<table class="rt"><tr><th>Name</th><th>Sentry / time - times</th></tr>'+g.map(function(f){return '<tr><td><b>'+esc(f.nm)+'</b></td><td>'+f.items.map(function(e){return esc(e.label)+' - <b>'+P2(e.n)+' times</b>'}).join('<br>')+'</td></tr>'}).join('')+'</table>':'';
 }
 function draw(){
   var MN=['January','February','March','April','May','June','July','August','September','October','November','December'],ym=S.month.split('-');document.getElementById('mn').textContent=MN[+ym[1]-1]+' '+ym[0];
@@ -132,7 +132,7 @@ async function exportXlsx(){
   var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:5},{wch:18}].concat(S.dates.map(function(){return{wch:12}}));ws['!freeze']={xSplit:2,ySplit:1};
   var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Duty chart');
   var g=groups(findDups()),nr=[['Name','Sentry','Times']];
-  g.forEach(function(f){f.items.forEach(function(e){nr.push([f.nm,e.label,e.ds.length])})});
+  g.forEach(function(f){f.items.forEach(function(e){nr.push([f.nm,e.label,e.n])})});
   var w2=XLSX.utils.aoa_to_sheet(nr);w2['!cols']=[{wch:18},{wch:18},{wch:8}];XLSX.utils.book_append_sheet(wb,w2,'Nominal roll');
   var MN=['January','February','March','April','May','June','July','August','September','October','November','December'],ym=S.month.split('-');
   var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
@@ -168,7 +168,7 @@ function makeImg(){
     cell(pad,y,nw2,34,'Name',true,'#e5e7eb','left');cell(pad+nw2,y,dw,34,'Sentry / time - times',true,'#e5e7eb','left');y+=34;
     gp.forEach(function(f){var h=34*f.items.length;cell(pad,y,nw2,h,'',false,'#fff','left');cell(pad+nw2,y,dw,h,'',false,'#fff','left');
       x.fillStyle='#111';x.textAlign='left';x.font='bold 15px sans-serif';x.fillText(f.nm,pad+8,y+17,nw2-12);
-      f.items.forEach(function(e,i){x.font='15px sans-serif';x.fillText(e.label+' - '+e.ds.length+' times',pad+nw2+8,y+17+34*i,dw-12)});y+=h})}
+      f.items.forEach(function(e,i){x.font='15px sans-serif';x.fillText(e.label+' - '+P2(e.n)+' times',pad+nw2+8,y+17+34*i,dw-12)});y+=h})}
   var du=c.toDataURL('image/png');window.LASTIMG=du;
   document.getElementById('out').innerHTML='<div class="card"><b>Image</b><img src="'+du+'" alt="Duty table">'+(isNative()?'<button onclick="shareImg()" style="margin-top:8px">Image save / share</button>':'<p class="hint">Image-a long-press panni Save image select pannunga.</p>')+'</div>';
 }
